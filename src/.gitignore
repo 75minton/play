@@ -8,3 +8,5 @@ yarn-debug.log*
 yarn-error.log*
 dev-server-error.log
 tsconfig.tsbuildinfo
+
+.vercel
