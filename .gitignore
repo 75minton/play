@@ -1,0 +1,16 @@
+node_modules/
+.next/
+src/node_modules/
+src/.next/
+src/.env.local
+src/.env*.local
+.env.local
+.env*.local
+dev-server.log
+session-cookie.txt
+src/dev-server-error.log
+src/tsconfig.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
