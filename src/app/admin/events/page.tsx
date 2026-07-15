@@ -21,6 +21,13 @@ type EventSummary = {
   finished_match_count: number;
 };
 
+const statusLabel: Record<string, string> = {
+  open: '신청가능',
+  closed: '신청마감',
+  running: '진행중',
+  finished: '종료',
+};
+
 export default function AdminEventsPage() {
   const [message, setMessage] = useState('');
   const [events, setEvents] = useState<EventSummary[]>([]);
@@ -51,7 +58,7 @@ export default function AdminEventsPage() {
     const maxParticipants = Number(formData.get('max_participants') || 40);
 
     if (!title || !eventDate || !accessCode) {
-      setMessage('모임명, 날짜, 모임 코드는 필수입니다.');
+      setMessage('모임명, 날짜, 모임코드는 필수입니다.');
       return;
     }
     if (!Number.isInteger(courtCount) || courtCount < 1 || !Number.isInteger(maxParticipants) || maxParticipants < 1) {
@@ -78,44 +85,51 @@ export default function AdminEventsPage() {
       setMessage(`모임 생성 실패: ${result.error || '서버 오류'}`);
       return;
     }
-    setMessage('모임이 생성되었습니다. 아래 생성된 모임 목록에서 확인하세요.');
+    setMessage('모임을 생성했습니다. 목록에서 설정, 대진, 결과 메뉴로 이동할 수 있습니다.');
     await loadEvents();
   }
 
   return (
-    <AdminShell title="모임 생성/관리">
+    <AdminShell title="모임관리">
       <div className="grid gap-6">
         <section className="card">
-          <h2 className="text-xl font-black">새 모임 생성</h2>
-          <form action={createEvent} className="mt-5 grid gap-4 md:grid-cols-2">
+          <div>
+            <span className="badge">New event</span>
+            <h2 className="section-title mt-3">새 모임 생성</h2>
+            <p className="helper-text mt-2">참가자가 입력할 모임코드와 경기 운영에 필요한 기본 정보를 등록합니다.</p>
+          </div>
+          <form action={createEvent} className="mt-6 grid gap-4 md:grid-cols-2">
             <input className="input md:col-span-2" name="title" placeholder="모임명" required />
             <input className="input" name="event_date" type="date" required />
             <input className="input" name="location" placeholder="장소" />
             <input className="input" name="start_time" type="time" />
             <input className="input" name="end_time" type="time" />
-            <input className="input" name="access_code" placeholder="참가 신청 코드" required />
+            <input className="input" name="access_code" placeholder="모임코드" required />
             <input className="input" name="max_participants" type="number" min={1} step={1} placeholder="정원" defaultValue={40} required />
             <input className="input" name="court_count" type="number" min={1} step={1} placeholder="코트 수" defaultValue={4} required />
             <button className="btn md:col-span-2">모임 생성</button>
           </form>
-          {message && <p className="mt-4 rounded-xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
+          {message && <p className="mt-4 rounded-2xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
         </section>
 
         <section className="card">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-black">생성된 모임 목록</h2>
-            <button className="rounded-full bg-gray-100 px-4 py-2 text-sm font-bold" onClick={loadEvents} type="button">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="section-title">생성된 모임</h2>
+              <p className="helper-text mt-1">운영할 모임을 선택해 설정, 대진, 결과 입력으로 이동하세요.</p>
+            </div>
+            <button className="nav-pill" onClick={loadEvents} type="button">
               새로고침
             </button>
           </div>
           {loading ? (
             <p className="mt-4 text-gray-600">모임 목록을 불러오는 중입니다.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
+            <div className="table-wrap mt-5">
+              <table className="data-table">
                 <thead>
-                  <tr className="border-b">
-                    <th className="p-3">모임명</th>
+                  <tr>
+                    <th>모임</th>
                     <th>날짜/장소</th>
                     <th>상태</th>
                     <th>참가</th>
@@ -127,15 +141,15 @@ export default function AdminEventsPage() {
                 </thead>
                 <tbody>
                   {events.map((event) => (
-                    <tr key={event.id} className="border-b">
-                      <td className="p-3 font-bold">{event.title}</td>
+                    <tr key={event.id}>
+                      <td className="font-bold">{event.title}</td>
                       <td>
                         {event.event_date}
                         <br />
                         <span className="text-gray-500">{event.location || '-'}</span>
                       </td>
                       <td>
-                        <span className="badge">{event.status}</span>
+                        <span className="badge">{statusLabel[event.status] || event.status}</span>
                       </td>
                       <td>
                         {event.registration_count}/{event.max_participants}
@@ -148,17 +162,19 @@ export default function AdminEventsPage() {
                         <br />
                         <span className="text-gray-500">종료/전체</span>
                       </td>
-                      <td className="font-mono">{event.access_code}</td>
-                      <td className="space-x-2">
-                        <Link className="text-sm font-bold text-blue-700" href={`/admin/settings?event_id=${event.id}`}>
-                          설정
-                        </Link>
-                        <Link className="text-sm font-bold text-blue-700" href={`/admin/matches?event_id=${event.id}`}>
-                          대진
-                        </Link>
-                        <Link className="text-sm font-bold text-blue-700" href={`/admin/results?event_id=${event.id}`}>
-                          결과
-                        </Link>
+                      <td className="font-mono font-bold">{event.access_code}</td>
+                      <td>
+                        <div className="flex flex-wrap gap-2">
+                          <Link className="text-sm font-black text-blue-700" href={`/admin/settings?event_id=${event.id}`}>
+                            설정
+                          </Link>
+                          <Link className="text-sm font-black text-blue-700" href={`/admin/matches?event_id=${event.id}`}>
+                            대진
+                          </Link>
+                          <Link className="text-sm font-black text-blue-700" href={`/admin/results?event_id=${event.id}`}>
+                            결과
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}

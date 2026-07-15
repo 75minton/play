@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { AdminShell } from '@/components/AdminShell';
 
 const levels = ['E조', 'D조', 'C조', 'B조', 'A조', 'S조'];
+const statusLabel: Record<string, string> = { applied: '신청', checked_in: '체크인', waitlisted: '대기', canceled: '취소' };
+const playTypeLabel: Record<string, string> = { random: '랜덤', mens: '남복', womens: '여복', mixed: '혼복' };
 
 type EventOption = { id: string; title: string; event_date: string; location: string | null };
 type Registration = {
@@ -71,8 +73,12 @@ export default function AdminRegistrationsPage() {
     <AdminShell title="참가자관리">
       <div className="grid gap-6">
         <section className="card">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-black">선택 모임 참가자 리스트</h2>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <span className="badge">{registrations.length}명</span>
+              <h2 className="section-title mt-3">참가자 목록</h2>
+              <p className="helper-text mt-1">이름을 클릭하면 신청 정보를 수정할 수 있습니다.</p>
+            </div>
             <select className="input max-w-sm" value={selectedEventId} onChange={(event) => loadData(event.target.value)}>
               <option value="">모임 선택</option>
               {events.map((event) => (
@@ -82,28 +88,30 @@ export default function AdminRegistrationsPage() {
               ))}
             </select>
           </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
+          <div className="table-wrap mt-5">
+            <table className="data-table">
               <thead>
-                <tr className="border-b">
-                  <th className="p-3">이름</th>
+                <tr>
+                  <th>이름</th>
                   <th>성별</th>
                   <th>급수</th>
-                  <th>신청구분</th>
-                  <th>희망파트너</th>
+                  <th>신청 구분</th>
+                  <th>희망 파트너</th>
                   <th>상태</th>
                   <th>연락처</th>
                 </tr>
               </thead>
               <tbody>
                 {registrations.map((row) => (
-                  <tr key={row.id} className="cursor-pointer border-b hover:bg-gray-50" onClick={() => setSelected(row)}>
-                    <td className="p-3 font-bold text-blue-700">{row.members?.name}</td>
+                  <tr key={row.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setSelected(row)}>
+                    <td className="font-black text-blue-700">{row.members?.name}</td>
                     <td>{row.members?.gender === 'M' ? '남자' : '여자'}</td>
                     <td>{row.members?.level}</td>
-                    <td>{row.play_type}</td>
+                    <td>{playTypeLabel[row.play_type] || row.play_type}</td>
                     <td>{row.partner_name || '-'}</td>
-                    <td><span className="badge">{row.status}</span></td>
+                    <td>
+                      <span className="badge">{statusLabel[row.status] || row.status}</span>
+                    </td>
                     <td>{row.members?.phone_last4}</td>
                   </tr>
                 ))}
@@ -111,22 +119,26 @@ export default function AdminRegistrationsPage() {
             </table>
             {registrations.length === 0 && <p className="py-8 text-center text-gray-500">참가자가 없습니다.</p>}
           </div>
-          {message && <p className="mt-4 rounded-xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
+          {message && <p className="mt-4 rounded-2xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
         </section>
 
         {selected && (
           <section className="card">
-            <h2 className="text-xl font-black">참가자 정보 수정</h2>
+            <h2 className="section-title">참가자 정보 수정</h2>
             <form action={save} className="mt-5 grid gap-4 md:grid-cols-2">
               <input className="input" name="name" defaultValue={selected.members.name} placeholder="이름" />
-              <input className="input" name="phone_last4" defaultValue={selected.members.phone_last4} placeholder="휴대폰 뒤 4자리" maxLength={4} />
+              <input className="input" name="phone_last4" defaultValue={selected.members.phone_last4} placeholder="휴대폰 끝 4자리" maxLength={4} />
               <select className="input" name="gender" defaultValue={selected.members.gender || 'M'}>
                 <option value="M">남자</option>
                 <option value="F">여자</option>
               </select>
               <select className="input" name="level" defaultValue={selected.members.level || ''}>
                 <option value="">급수 선택</option>
-                {levels.map((level) => <option key={level} value={level}>{level}</option>)}
+                {levels.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
               </select>
               <select className="input" name="play_type" defaultValue={selected.play_type || 'random'}>
                 <option value="random">랜덤</option>
@@ -140,10 +152,12 @@ export default function AdminRegistrationsPage() {
                 <option value="waitlisted">대기</option>
                 <option value="canceled">취소</option>
               </select>
-              <input className="input md:col-span-2" name="partner_name" defaultValue={selected.partner_name || ''} placeholder="희망파트너" />
-              <textarea className="input min-h-24 md:col-span-2" name="memo" defaultValue={selected.members.memo || ''} placeholder="메모" />
+              <input className="input md:col-span-2" name="partner_name" defaultValue={selected.partner_name || ''} placeholder="희망 파트너" />
+              <textarea className="input min-h-28 md:col-span-2" name="memo" defaultValue={selected.members.memo || ''} placeholder="메모" />
               <button className="btn">저장</button>
-              <button className="btn btn-secondary" type="button" onClick={() => setSelected(null)}>취소</button>
+              <button className="btn btn-secondary" type="button" onClick={() => setSelected(null)}>
+                취소
+              </button>
             </form>
           </section>
         )}

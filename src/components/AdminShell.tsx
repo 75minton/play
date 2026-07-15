@@ -90,29 +90,29 @@ export function AdminShell({ title, children }: { title: string; children: React
     return (
       <main className="mx-auto max-w-3xl px-4 py-16 text-center">
         <h1 className="text-2xl font-black">관리자 권한이 없습니다</h1>
-        <p className="mt-3 text-gray-600">서버 관리자 인증이 필요합니다.</p>
+        <p className="mt-3 text-gray-600">관리자 로그인이 필요합니다.</p>
         <button className="btn mt-6" onClick={signOut}>
-          다른 계정으로 로그인
+          로그인 화면으로 이동
         </button>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-4 py-6">
-      <header className="mb-6 flex flex-col gap-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <Link href="/" className="text-sm font-bold text-gray-500">
-              참석자 화면
+    <main className="mx-auto min-h-screen max-w-7xl px-4 py-5">
+      <header className="mb-6 rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <Link href="/" className="text-sm font-black text-gray-500">
+              75Rabbit 관리자
             </Link>
-            <h1 className="mt-2 text-3xl font-black">{title}</h1>
-            <p className="mt-1 text-sm font-bold text-gray-500">
+            <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">{title}</h1>
+            <p className="mt-1 truncate text-sm font-bold text-gray-500">
               현재 모임: {selectedEvent ? `${selectedEvent.title} (${selectedEvent.event_date})` : '선택된 모임 없음'}
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select className="input min-w-56" value={selectedEventId} onChange={(event) => changeEvent(event.target.value)}>
+          <div className="flex flex-col gap-2 md:flex-row">
+            <select className="input min-w-72" value={selectedEventId} onChange={(event) => changeEvent(event.target.value)}>
               <option value="">모임 선택</option>
               {events.map((event) => (
                 <option key={event.id} value={event.id}>
@@ -120,17 +120,20 @@ export function AdminShell({ title, children }: { title: string; children: React
                 </option>
               ))}
             </select>
-            <button onClick={signOut} className="rounded-full bg-gray-800 px-4 py-2 text-sm font-bold text-white">
+            <button onClick={signOut} className="nav-pill" type="button">
               로그아웃
             </button>
           </div>
         </div>
-        <nav className="flex flex-wrap gap-2">
-          {adminItems.map((item) => (
-            <Link key={item.href} href={item.href} className={`rounded-full px-4 py-2 text-sm font-bold shadow-sm ${pathname === item.href ? 'bg-gray-900 text-white' : 'bg-white hover:bg-gray-100'}`}>
-              {item.label}
-            </Link>
-          ))}
+        <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          {adminItems.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link key={item.href} href={item.href} className={`nav-pill shrink-0 ${active ? 'nav-pill-active' : ''}`}>
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </header>
       {children}

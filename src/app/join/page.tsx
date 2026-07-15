@@ -33,7 +33,7 @@ export default function JoinPage() {
     const memo = String(formData.get('memo') || '').trim();
 
     if (!name || !phoneLast4 || !level) {
-      setMessage('이름, 급수, 휴대폰 뒤 4자리는 필수입니다.');
+      setMessage('이름, 급수, 휴대폰 끝 4자리는 필수입니다.');
       setLoading(false);
       return;
     }
@@ -51,43 +51,72 @@ export default function JoinPage() {
   return (
     <AppShell>
       <section className="card">
-        <h1 className="text-2xl font-black">참가신청</h1>
-        <p className="mt-2 text-sm text-gray-600">{eventTitle ? `${eventTitle} 모임에 참가 신청합니다.` : '로그인된 모임 정보를 확인하고 있습니다.'}</p>
-        <form action={handleSubmit} className="mt-5 grid gap-4">
-          <input className="input" name="name" placeholder="이름" required />
-          <div className="grid grid-cols-2 gap-3">
-            <select className="input" name="gender" defaultValue="M">
-              <option value="M">남자</option>
-              <option value="F">여자</option>
-            </select>
-            <select className="input" name="level" defaultValue="" required>
-              <option value="" disabled>
-                급수 선택
-              </option>
-              {levels.map((level) => (
-                <option key={level} value={level}>
-                  {level}
+        <div className="flex flex-col gap-2">
+          <span className="badge">참가신청</span>
+          <h1 className="section-title">모임 참가 정보 등록</h1>
+          <p className="helper-text">{eventTitle ? `${eventTitle} 모임에 참가 신청합니다.` : '로그인된 모임 정보를 확인하고 있습니다.'}</p>
+        </div>
+        <form action={handleSubmit} className="mt-6 grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="font-bold">
+              이름
+              <input className="input mt-2" name="name" placeholder="예: 홍길동" required />
+            </label>
+            <label className="font-bold">
+              휴대폰 끝 4자리
+              <input className="input mt-2" name="phone_last4" inputMode="numeric" placeholder="1234" maxLength={4} required />
+            </label>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="font-bold">
+              성별
+              <select className="input mt-2" name="gender" defaultValue="M">
+                <option value="M">남자</option>
+                <option value="F">여자</option>
+              </select>
+            </label>
+            <label className="font-bold">
+              급수
+              <select className="input mt-2" name="level" defaultValue="" required>
+                <option value="" disabled>
+                  급수 선택
                 </option>
-              ))}
+                {levels.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="font-bold">
+            신청 구분
+            <select className="input mt-2" name="play_type" defaultValue="random">
+              <option value="random">랜덤 매칭</option>
+              <option value="mens">남복</option>
+              <option value="womens">여복</option>
+              <option value="mixed">혼복</option>
             </select>
+          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="font-bold">
+              희망 남자 파트너
+              <input className="input mt-2" name="partner_male_name" placeholder="선택 입력" />
+            </label>
+            <label className="font-bold">
+              희망 여자 파트너
+              <input className="input mt-2" name="partner_female_name" placeholder="선택 입력" />
+            </label>
           </div>
-          <input className="input" name="phone_last4" placeholder="휴대폰 뒤 4자리" maxLength={4} required />
-          <select className="input" name="play_type" defaultValue="random">
-            <option value="random">랜덤</option>
-            <option value="mens">남복</option>
-            <option value="womens">여복</option>
-            <option value="mixed">혼복</option>
-          </select>
-          <div className="grid gap-3 md:grid-cols-2">
-            <input className="input" name="partner_male_name" placeholder="희망 남자 파트너" />
-            <input className="input" name="partner_female_name" placeholder="희망 여자 파트너" />
-          </div>
-          <textarea className="input min-h-24" name="memo" placeholder="메모" />
-          <button className="btn" disabled={loading}>
-            {loading ? '신청 중...' : '참가신청 완료'}
+          <label className="font-bold">
+            메모
+            <textarea className="input mt-2 min-h-28" name="memo" placeholder="운영자에게 전달할 내용이 있으면 입력하세요." />
+          </label>
+          <button className="btn btn-success" disabled={loading}>
+            {loading ? '신청 중...' : '참가 신청 완료'}
           </button>
         </form>
-        {message && <p className="mt-4 rounded-xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
+        {message && <p className="mt-4 rounded-2xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
       </section>
     </AppShell>
   );

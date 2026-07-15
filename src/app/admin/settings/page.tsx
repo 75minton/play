@@ -78,14 +78,15 @@ export default function AdminSettingsPage() {
     <AdminShell title="설정">
       <div className="grid gap-6">
         <section className="card">
-          <h2 className="text-xl font-black">모임별 경기 설정</h2>
-          <p className="mt-2 text-sm text-gray-600">모임코드와 대진 생성에 필요한 기본값을 설정합니다.</p>
+          <span className="badge">Event settings</span>
+          <h2 className="section-title mt-3">모임별 경기 설정</h2>
+          <p className="helper-text mt-2">모임코드, 코트 수, 목표 경기 수, 신청 상태를 관리합니다.</p>
           {!settingsSchemaReady && (
             <p className="mt-4 rounded-2xl bg-yellow-50 p-4 text-sm font-bold text-yellow-900">
-              지정 경기수 저장 컬럼이 아직 DB에 없습니다. Supabase SQL Editor에서 db/event_settings.sql을 실행하면 지정 경기수도 저장됩니다.
+              목표 경기 수 저장 컬럼이 DB에 아직 없습니다. Supabase SQL Editor에서 db/event_settings.sql을 실행하면 목표 경기 수도 저장됩니다.
             </p>
           )}
-          <form action={saveSettings} className="mt-5 grid gap-4 md:grid-cols-2">
+          <form action={saveSettings} className="mt-6 grid gap-4 md:grid-cols-2">
             <select className="input md:col-span-2" name="event_id" value={selectedEventId} onChange={(event) => loadData(event.target.value)} required>
               <option value="">모임 선택</option>
               {events.map((event) => (
@@ -94,50 +95,50 @@ export default function AdminSettingsPage() {
                 </option>
               ))}
             </select>
-            <label>
-              <span className="mb-2 block text-sm font-bold">모임 Code</span>
-              <input className="input" name="access_code" defaultValue={selectedEvent?.access_code || ''} key={`code-${selectedEventId}`} />
+            <label className="font-bold">
+              모임 Code
+              <input className="input mt-2" name="access_code" defaultValue={selectedEvent?.access_code || ''} key={`code-${selectedEventId}`} />
             </label>
-            <label>
-              <span className="mb-2 block text-sm font-bold">정원</span>
-              <input className="input" name="max_participants" type="number" min={1} step={1} defaultValue={selectedEvent?.max_participants || 40} key={`max-${selectedEventId}`} />
+            <label className="font-bold">
+              정원
+              <input className="input mt-2" name="max_participants" type="number" min={1} step={1} defaultValue={selectedEvent?.max_participants || 40} key={`max-${selectedEventId}`} />
             </label>
-            <label>
-              <span className="mb-2 block text-sm font-bold">코트 수</span>
-              <input className="input" name="court_count" type="number" min={1} step={1} defaultValue={selectedEvent?.court_count || 4} key={`court-${selectedEventId}`} />
+            <label className="font-bold">
+              코트 수
+              <input className="input mt-2" name="court_count" type="number" min={1} step={1} defaultValue={selectedEvent?.court_count || 4} key={`court-${selectedEventId}`} />
             </label>
-            <label>
-              <span className="mb-2 block text-sm font-bold">지정 경기수</span>
-              <input className="input" name="match_count" type="number" min={1} step={1} placeholder="예: 12" defaultValue={selectedEvent?.match_count || ''} key={`match-${selectedEventId}`} />
+            <label className="font-bold">
+              목표 경기 수
+              <input className="input mt-2" name="match_count" type="number" min={1} step={1} placeholder="예: 12" defaultValue={selectedEvent?.match_count || ''} key={`match-${selectedEventId}`} />
             </label>
-            <label className="md:col-span-2">
-              <span className="mb-2 block text-sm font-bold">모임 상태</span>
-              <select className="input" name="status" defaultValue={selectedEvent?.status || 'open'} key={`status-${selectedEventId}`}>
-                <option value="open">open · 참가 신청 가능</option>
-                <option value="closed">closed · 신청 마감</option>
-                <option value="running">running · 경기 진행 중</option>
-                <option value="finished">finished · 모임 종료</option>
+            <label className="font-bold md:col-span-2">
+              모임 상태
+              <select className="input mt-2" name="status" defaultValue={selectedEvent?.status || 'open'} key={`status-${selectedEventId}`}>
+                <option value="open">신청가능</option>
+                <option value="closed">신청마감</option>
+                <option value="running">경기진행중</option>
+                <option value="finished">모임종료</option>
               </select>
             </label>
             <button className="btn md:col-span-2">설정 저장</button>
           </form>
-          {message && <p className="mt-4 rounded-xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
+          {message && <p className="mt-4 rounded-2xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
         </section>
 
         <section className="card">
-          <h2 className="text-xl font-black">현재 경기 운영 정보</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl bg-gray-50 p-4">
+          <h2 className="section-title">현재 운영 정보</h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl bg-gray-50 p-5">
               <b>선택 모임</b>
-              <p className="mt-1 text-gray-600">{selectedEvent ? `${selectedEvent.title} (${selectedEvent.event_date})` : '선택 안 됨'}</p>
+              <p className="mt-2 text-gray-600">{selectedEvent ? `${selectedEvent.title} (${selectedEvent.event_date})` : '선택 안 됨'}</p>
             </div>
-            <div className="rounded-2xl bg-gray-50 p-4">
-              <b>생성된 경기수</b>
-              <p className="mt-1 text-gray-600">{existingMatchCount}경기</p>
+            <div className="rounded-3xl bg-gray-50 p-5">
+              <b>생성된 경기</b>
+              <p className="mt-2 text-gray-600">{existingMatchCount}경기</p>
             </div>
-            <div className="rounded-2xl bg-gray-50 p-4">
+            <div className="rounded-3xl bg-gray-50 p-5">
               <b>코트 목록</b>
-              <p className="mt-1 text-gray-600">{courts.map((court) => court.name || `${court.court_no}코트`).join(', ') || '-'}</p>
+              <p className="mt-2 text-gray-600">{courts.map((court) => court.name || `${court.court_no}코트`).join(', ') || '-'}</p>
             </div>
           </div>
         </section>

@@ -17,41 +17,47 @@ function shuffle<T>(items: T[]): T[] {
   return copied;
 }
 
+function playerKey(player: MatchPlayerInput) {
+  return player.memberId;
+}
+
 export function generateSimpleDoublesMatches(params: {
   players: MatchPlayerInput[];
   courtCount: number;
   roundNo?: number;
   matchCount?: number;
+  existingPlayCounts?: Record<string, number>;
+  startMatchNo?: number;
 }): GeneratedMatch[] {
-  const { players, courtCount, roundNo = 1, matchCount } = params;
+  const { players, courtCount, roundNo = 1, matchCount, existingPlayCounts = {}, startMatchNo = 1 } = params;
   if (courtCount < 1) throw new Error('코트 수는 1 이상이어야 합니다.');
   if (players.length < 4) return [];
 
   const targetCount = matchCount && matchCount > 0 ? matchCount : Math.floor(players.length / 4);
+  const playCounts = new Map<string, number>();
+  players.forEach((player) => playCounts.set(playerKey(player), existingPlayCounts[playerKey(player)] || 0));
+
   const matches: GeneratedMatch[] = [];
   let currentRound = roundNo;
-  let matchNo = 1;
+  let matchNo = startMatchNo;
 
   while (matches.length < targetCount) {
-    const shuffled = shuffle(players);
-    for (let i = 0; i + 3 < shuffled.length && matches.length < targetCount; i += 4) {
-      const group = shuffled.slice(i, i + 4);
-      const courtNo = ((matchNo - 1) % courtCount) + 1;
-      matches.push({
-        roundNo: currentRound,
-        matchNo,
-        courtNo,
-        teamA: [group[0], group[1]],
-        teamB: [group[2], group[3]],
-      });
-      matchNo += 1;
-      if (((matchNo - 1) % courtCount) === 0 && matches.length < targetCount) {
-        currentRound += 1;
-      }
-    }
+    const ordered = shuffle(players).sort((a, b) => (playCounts.get(playerKey(a)) || 0) - (playCounts.get(playerKey(b)) || 0));
+    const group = ordered.slice(0, 4);
+    if (group.length < 4) break;
 
-    if (Math.floor(players.length / 4) === 0) break;
-    if (matches.length < targetCount && matchNo > targetCount + courtCount + players.length) break;
+    const courtNo = ((matchNo - 1) % courtCount) + 1;
+    matches.push({
+      roundNo: currentRound,
+      matchNo,
+      courtNo,
+      teamA: [group[0], group[3]],
+      teamB: [group[1], group[2]],
+    });
+
+    group.forEach((player) => playCounts.set(playerKey(player), (playCounts.get(playerKey(player)) || 0) + 1));
+    matchNo += 1;
+    if (((matchNo - 1) % courtCount) === 0 && matches.length < targetCount) currentRound += 1;
   }
 
   return matches;
