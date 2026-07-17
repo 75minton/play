@@ -32,15 +32,15 @@ export async function POST(request: Request) {
   const session = {
     eventId: event.id,
     title: event.title,
-    accessCode: event.access_code,
     eventDate: event.event_date,
     location: event.location,
   };
   (await cookies()).set(PARTICIPANT_EVENT_COOKIE, encodeParticipantEventSession(session), {
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 24 * 365,
   });
 
   return NextResponse.json({ ok: true, event: session });

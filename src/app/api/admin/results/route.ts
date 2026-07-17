@@ -74,13 +74,25 @@ export async function POST(request: Request) {
   if (finish && teamAScore === 0 && teamBScore === 0) {
     return NextResponse.json({ error: '경기 종료 전 점수를 입력하세요.' }, { status: 400 });
   }
+  if (finish && teamAScore === teamBScore) {
+    return NextResponse.json({ error: '동점 점수로는 경기를 종료할 수 없습니다.' }, { status: 400 });
+  }
 
   const nextStatus = requestedStatus || (finish ? 'finished' : 'playing');
   if (!['scheduled', 'playing', 'paused', 'finished'].includes(nextStatus)) {
     return NextResponse.json({ error: '경기 상태가 올바르지 않습니다.' }, { status: 400 });
   }
 
-  const { error } = await getServerSupabase()
+  const db = getServerSupabase();
+  const { data: currentMatch, error: currentMatchError } = await db
+    .from('matches')
+    .select('id,event_id,court_id')
+    .eq('id', matchId)
+    .maybeSingle();
+  if (currentMatchError) return NextResponse.json({ error: currentMatchError.message }, { status: 500 });
+  if (!currentMatch) return NextResponse.json({ error: '경기를 찾을 수 없습니다.' }, { status: 404 });
+
+  const { error } = await db
     .from('matches')
     .update({
       team_a_score: teamAScore,
@@ -91,5 +103,26 @@ export async function POST(request: Request) {
     .eq('id', matchId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+
+  let promotedMatchId: string | null = null;
+  if (nextStatus === 'finished' && currentMatch.court_id) {
+    const { data: nextMatch, error: nextMatchError } = await db
+      .from('matches')
+      .select('id')
+      .eq('event_id', currentMatch.event_id)
+      .eq('court_id', currentMatch.court_id)
+      .eq('status', 'scheduled')
+      .order('round_no', { ascending: true })
+      .order('match_no', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (nextMatchError) return NextResponse.json({ error: nextMatchError.message }, { status: 500 });
+    if (nextMatch) {
+      const { error: promoteError } = await db.from('matches').update({ status: 'playing' }).eq('id', nextMatch.id).eq('status', 'scheduled');
+      if (promoteError) return NextResponse.json({ error: promoteError.message }, { status: 500 });
+      promotedMatchId = nextMatch.id;
+    }
+  }
+
+  return NextResponse.json({ ok: true, promoted_match_id: promotedMatchId });
 }

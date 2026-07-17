@@ -3,23 +3,19 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Icon, type IconName } from '@/components/Icon';
 
-const adminItems = [
-  { href: '/admin/events', label: '모임관리' },
-  { href: '/admin/registrations', label: '참가자관리' },
-  { href: '/admin/matches', label: '대진관리' },
-  { href: '/admin/results', label: '결과입력' },
-  { href: '/admin/settings', label: '설정' },
-  { href: '/scoreboard', label: '전광판' },
-  { href: '/', label: '메인홈' },
+const adminItems: { href: string; label: string; icon: IconName }[] = [
+  { href: '/admin', label: '대시보드', icon: 'dashboard' },
+  { href: '/admin/events', label: '모임관리', icon: 'calendar' },
+  { href: '/admin/registrations', label: '참가자', icon: 'users' },
+  { href: '/admin/matches', label: '대진관리', icon: 'shuffle' },
+  { href: '/admin/results', label: '결과입력', icon: 'clipboard' },
+  { href: '/admin/settings', label: '설정', icon: 'settings' },
+  { href: '/scoreboard', label: '전광판', icon: 'monitor' },
 ];
 
-type AdminEvent = {
-  id: string;
-  title: string;
-  event_date: string;
-  location: string | null;
-};
+type AdminEvent = { id: string; title: string; event_date: string; location: string | null };
 
 export function AdminShell({ title, children }: { title: string; children: React.ReactNode }) {
   const router = useRouter();
@@ -31,39 +27,40 @@ export function AdminShell({ title, children }: { title: string; children: React
 
   useEffect(() => {
     let active = true;
-
     async function checkAdmin() {
-      const response = await fetch('/api/admin/session', { cache: 'no-store' });
-      const session = await response.json();
-      if (!session.authenticated) {
-        router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
-        return;
+      try {
+        const response = await fetch('/api/admin/session', { cache: 'no-store' });
+        const session = await response.json();
+        if (!response.ok || !session.authenticated) {
+          router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+          return;
+        }
+        if (session.mustChangePassword && pathname !== '/admin/change-password') {
+          router.replace('/admin/change-password');
+          return;
+        }
+        if (active) setAuthorized(true);
+      } finally {
+        if (active) setChecking(false);
       }
-      if (session.mustChangePassword && pathname !== '/admin/change-password') {
-        router.replace('/admin/change-password');
-        return;
-      }
-      if (!active) return;
-      setAuthorized(true);
-      setChecking(false);
     }
-
     checkAdmin();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [pathname, router]);
 
   useEffect(() => {
     if (!authorized) return;
     fetch('/api/admin/events', { cache: 'no-store' })
-      .then((response) => response.json())
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error('모임 조회 실패'))))
       .then((result) => {
         const loaded = result.events || [];
         setEvents(loaded);
+        const queryId = new URLSearchParams(window.location.search).get('event_id');
         const saved = window.localStorage.getItem('75rabbit_admin_event_id');
-        const nextId = saved && loaded.some((event: AdminEvent) => event.id === saved) ? saved : loaded[0]?.id || '';
+        const preferred = queryId || saved;
+        const nextId = preferred && loaded.some((event: AdminEvent) => event.id === preferred) ? preferred : loaded[0]?.id || '';
         setSelectedEventId(nextId);
+        if (nextId) window.localStorage.setItem('75rabbit_admin_event_id', nextId);
       })
       .catch(() => setEvents([]));
   }, [authorized]);
@@ -71,8 +68,10 @@ export function AdminShell({ title, children }: { title: string; children: React
   function changeEvent(eventId: string) {
     setSelectedEventId(eventId);
     window.localStorage.setItem('75rabbit_admin_event_id', eventId);
-    const target = pathname.startsWith('/admin') ? pathname : '/admin/events';
-    router.push(`${target}?event_id=${encodeURIComponent(eventId)}`);
+    window.dispatchEvent(new CustomEvent('75rabbit:event-change', { detail: { eventId } }));
+    const params = new URLSearchParams(window.location.search);
+    if (eventId) params.set('event_id', eventId); else params.delete('event_id');
+    window.location.href = `${pathname}${params.size ? `?${params}` : ''}`;
   }
 
   async function signOut() {
@@ -83,56 +82,44 @@ export function AdminShell({ title, children }: { title: string; children: React
   const selectedEvent = events.find((event) => event.id === selectedEventId);
 
   if (checking) {
-    return <main className="mx-auto max-w-3xl px-4 py-16 text-center font-bold">관리자 권한을 확인하고 있습니다.</main>;
+    return <main className="grid min-h-screen place-items-center px-4"><div className="text-center"><div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" /><p className="mt-4 font-bold text-gray-600">관리자 권한을 확인하고 있습니다.</p></div></main>;
   }
 
-  if (!authorized) {
-    return (
-      <main className="mx-auto max-w-3xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-black">관리자 권한이 없습니다</h1>
-        <p className="mt-3 text-gray-600">관리자 로그인이 필요합니다.</p>
-        <button className="btn mt-6" onClick={signOut}>
-          로그인 화면으로 이동
-        </button>
-      </main>
-    );
-  }
+  if (!authorized) return null;
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-4 py-5">
-      <header className="mb-6 rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-sm backdrop-blur">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <main className="mx-auto min-h-screen w-full max-w-[1500px] px-3 py-3 sm:px-5 sm:py-5">
+      <header className="surface-header sticky top-2 z-30 mb-5 overflow-hidden p-3 sm:top-3 sm:p-4">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <Link href="/" className="text-sm font-black text-gray-500">
-              75Rabbit 관리자
+            <Link href="/admin" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#10221c] text-[10px] text-white">75</span>
+              Admin
             </Link>
-            <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">{title}</h1>
-            <p className="mt-1 truncate text-sm font-bold text-gray-500">
-              현재 모임: {selectedEvent ? `${selectedEvent.title} (${selectedEvent.event_date})` : '선택된 모임 없음'}
-            </p>
+            <h1 className="mt-2 truncate text-2xl font-black tracking-[-0.04em] sm:text-3xl">{title}</h1>
           </div>
-          <div className="flex flex-col gap-2 md:flex-row">
-            <select className="input min-w-72" value={selectedEventId} onChange={(event) => changeEvent(event.target.value)}>
-              <option value="">모임 선택</option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.event_date} · {event.title}
-                </option>
-              ))}
-            </select>
-            <button onClick={signOut} className="nav-pill" type="button">
-              로그아웃
-            </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/" className="nav-pill gap-1.5" aria-label="메인 홈"><Icon name="home" className="h-4 w-4" /><span className="hidden sm:inline">메인 홈</span></Link>
+            <button onClick={signOut} className="nav-pill gap-1.5" type="button" aria-label="로그아웃"><Icon name="logout" className="h-4 w-4" /><span className="hidden sm:inline">로그아웃</span></button>
           </div>
         </div>
-        <nav className="mt-4 flex gap-2 overflow-x-auto pb-1">
+
+        <div className="mt-3 grid gap-2 border-t border-gray-100 pt-3 lg:grid-cols-[minmax(240px,360px)_1fr] lg:items-center">
+          <label className="relative block">
+            <span className="sr-only">현재 모임 선택</span>
+            <select className="input h-11 min-h-11 appearance-none pr-10 text-sm font-extrabold" value={selectedEventId} onChange={(event) => changeEvent(event.target.value)}>
+              <option value="">모임 선택</option>
+              {events.map((event) => <option key={event.id} value={event.id}>{event.event_date} · {event.title}</option>)}
+            </select>
+            <Icon name="chevron-down" className="pointer-events-none absolute right-3 top-3 h-5 w-5 text-gray-400" />
+          </label>
+          <p className="truncate text-xs font-bold text-gray-500 lg:text-right">{selectedEvent ? `${selectedEvent.title} · ${selectedEvent.event_date}${selectedEvent.location ? ` · ${selectedEvent.location}` : ''}` : '운영할 모임을 선택하세요.'}</p>
+        </div>
+
+        <nav className="-mx-3 mt-3 flex gap-1.5 overflow-x-auto border-t border-gray-100 px-3 pt-3 [scrollbar-width:none] sm:-mx-4 sm:px-4" aria-label="관리자 메뉴">
           {adminItems.map((item) => {
             const active = pathname === item.href;
-            return (
-              <Link key={item.href} href={item.href} className={`nav-pill shrink-0 ${active ? 'nav-pill-active' : ''}`}>
-                {item.label}
-              </Link>
-            );
+            return <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={`nav-pill shrink-0 gap-1.5 ${active ? 'nav-pill-active' : ''}`}><Icon name={item.icon} className="h-4 w-4" />{item.label}</Link>;
           })}
         </nav>
       </header>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { Icon } from '@/components/Icon';
 
 type EventOption = {
   id: string;
@@ -39,28 +40,43 @@ const statusText: Record<string, string> = {
   finished: '경기종료',
 };
 
+const statusClass: Record<string, string> = {
+  scheduled: 'border border-slate-400/30 bg-slate-700 text-white',
+  playing: 'border border-emerald-200 bg-emerald-300 text-emerald-950',
+  paused: 'border border-amber-200 bg-amber-300 text-amber-950',
+  finished: 'border border-slate-200 bg-slate-200 text-slate-900',
+};
+
 function calcAutoColumns(width: number, courtCount: number) {
   const safeCourtCount = Math.max(1, courtCount || 1);
-  if (width < 820) return 1;
-  if (width < 1240) return Math.min(2, safeCourtCount);
-  if (width < 1640) return Math.min(3, safeCourtCount);
+  if (width < 860) return 1;
+  if (width < 1320) return Math.min(2, safeCourtCount);
+  if (width < 1760) return Math.min(3, safeCourtCount);
   return Math.min(4, safeCourtCount);
 }
 
-function TeamPanel({ label, names, score, color }: { label: string; names: string[]; score: number; color: 'blue' | 'rose' }) {
-  const colorClass = color === 'blue' ? 'border-blue-400 bg-blue-950/55' : 'border-rose-400 bg-rose-950/55';
+function TeamPanel({ label, names, score, tone }: { label: string; names: string[]; score: number; tone: 'blue' | 'rose' }) {
+  const colorClass = tone === 'blue' ? 'border-cyan-300 bg-[#075985]' : 'border-pink-300 bg-[#9d174d]';
+  const labelClass = tone === 'blue' ? 'text-cyan-950' : 'text-pink-950';
+  const chipClass = tone === 'blue' ? 'bg-cyan-100' : 'bg-pink-100';
   const slots = names.length ? names.slice(0, 2) : ['-'];
   while (slots.length < 2) slots.push('-');
 
   return (
-    <div className={`flex min-h-[190px] flex-col rounded-3xl border p-4 ${colorClass}`}>
-      <div className="flex items-start justify-between gap-3">
-        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-black text-gray-950">{label}팀</span>
-        <span className="text-[clamp(2.75rem,4vw,4.25rem)] font-black leading-none tabular-nums">{score}</span>
+    <div className={`flex h-full min-h-[118px] flex-col rounded-2xl border p-2 sm:min-h-[178px] sm:rounded-[1.5rem] sm:p-4 ${colorClass}`}>
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <span className={`shrink-0 rounded-full ${chipClass} px-2 py-0.5 text-[0.68rem] font-black sm:px-3 sm:py-1 sm:text-sm ${labelClass}`}>{label}팀</span>
+        <span className="text-[2.15rem] font-black leading-[0.9] tracking-tight tabular-nums sm:text-[clamp(2.7rem,3.7vw,4.4rem)]">{score}</span>
       </div>
-      <div className="mt-auto grid gap-2 pt-4">
+      <div className="mt-auto grid gap-1.5 pt-2 sm:gap-2 sm:pt-4">
         {slots.map((name, index) => (
-          <div key={`${name}-${index}`} className={`truncate rounded-2xl bg-white/10 px-4 py-3 text-[clamp(1.05rem,1.5vw,1.55rem)] font-black ${name === '-' ? 'text-white/45' : ''}`}>
+          <div
+            key={`${name}-${index}`}
+            className={`flex min-h-[32px] items-center truncate rounded-lg border border-white/70 bg-white px-2 text-[0.7rem] font-black leading-none shadow-sm sm:min-h-[44px] sm:rounded-2xl sm:px-4 sm:text-[clamp(1rem,1.25vw,1.42rem)] ${
+              name === '-' ? 'text-slate-400' : 'text-slate-950'
+            }`}
+            title={name}
+          >
             {name}
           </div>
         ))}
@@ -86,6 +102,10 @@ function AdminScoreControls({ match, onSaved }: { match: MatchView; onSaved: () 
       setMessage('경기 종료 전 점수를 입력하세요.');
       return;
     }
+    if (status === 'finished' && teamAScore === teamBScore) {
+      setMessage('동점 점수로는 경기를 종료할 수 없습니다.');
+      return;
+    }
 
     setSaving(true);
     setMessage('');
@@ -105,29 +125,29 @@ function AdminScoreControls({ match, onSaved }: { match: MatchView; onSaved: () 
   }
 
   return (
-    <div className="mt-4 rounded-3xl bg-white/10 p-4">
-      <div className="grid grid-cols-2 gap-3">
-        <label className="text-sm font-bold text-white/80">
+    <div className="mt-2 rounded-2xl border border-white/15 bg-[#08130f] p-2.5 sm:mt-4 sm:rounded-[1.35rem] sm:p-3">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs font-black text-white/75">
           A팀 점수
-          <input className="mt-1 w-full rounded-2xl border border-white/20 bg-gray-950 px-4 py-3 text-2xl font-black text-white" type="number" min={0} value={teamAScore} onChange={(event) => setTeamAScore(Number(event.target.value))} />
+          <input className="mt-1 h-10 w-full rounded-xl border border-white/20 bg-gray-950 px-3 text-lg font-black text-white outline-none sm:h-12 sm:rounded-2xl sm:text-xl" type="number" min={0} value={teamAScore} onChange={(event) => setTeamAScore(Number(event.target.value))} />
         </label>
-        <label className="text-sm font-bold text-white/80">
+        <label className="text-xs font-black text-white/75">
           B팀 점수
-          <input className="mt-1 w-full rounded-2xl border border-white/20 bg-gray-950 px-4 py-3 text-2xl font-black text-white" type="number" min={0} value={teamBScore} onChange={(event) => setTeamBScore(Number(event.target.value))} />
+          <input className="mt-1 h-10 w-full rounded-xl border border-white/20 bg-gray-950 px-3 text-lg font-black text-white outline-none sm:h-12 sm:rounded-2xl sm:text-xl" type="number" min={0} value={teamBScore} onChange={(event) => setTeamBScore(Number(event.target.value))} />
         </label>
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
-        <button className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-gray-950 disabled:opacity-60" disabled={saving} onClick={() => save('playing')} type="button">
+      <div className="mt-2 grid grid-cols-3 gap-1.5 sm:gap-2">
+        <button className="rounded-xl bg-white px-1 py-2 text-[0.68rem] font-black text-gray-950 disabled:opacity-60 sm:rounded-2xl sm:px-3 sm:py-2.5 sm:text-xs" disabled={saving} onClick={() => save('playing')} type="button">
           경기진행
         </button>
-        <button className="rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-gray-950 disabled:opacity-60" disabled={saving} onClick={() => save('paused')} type="button">
+        <button className="rounded-xl bg-yellow-300 px-1 py-2 text-[0.68rem] font-black text-gray-950 disabled:opacity-60 sm:rounded-2xl sm:px-3 sm:py-2.5 sm:text-xs" disabled={saving} onClick={() => save('paused')} type="button">
           일시중지
         </button>
-        <button className="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-gray-950 disabled:opacity-60" disabled={saving} onClick={() => save('finished')} type="button">
+        <button className="rounded-xl bg-emerald-400 px-1 py-2 text-[0.68rem] font-black text-gray-950 disabled:opacity-60 sm:rounded-2xl sm:px-3 sm:py-2.5 sm:text-xs" disabled={saving} onClick={() => save('finished')} type="button">
           경기종료
         </button>
       </div>
-      {message && <p className="mt-3 text-sm font-bold text-yellow-200">{message}</p>}
+      {message && <p className="mt-2 text-xs font-bold text-yellow-200">{message}</p>}
     </div>
   );
 }
@@ -155,7 +175,10 @@ export function ScoreboardScreen({ viewOnly = false }: { viewOnly?: boolean }) {
   const hiddenWaitingCount = Math.max(0, waitingMatches.length - visibleWaitingMatches.length);
 
   async function loadScoreboard(eventId = selectedEventId) {
-    const url = eventId ? `/api/scoreboard?event_id=${encodeURIComponent(eventId)}` : '/api/scoreboard';
+    const params = new URLSearchParams();
+    if (viewOnly) params.set('scope', 'participant');
+    if (!viewOnly && eventId) params.set('event_id', eventId);
+    const url = `/api/scoreboard${params.size ? `?${params}` : ''}`;
     const response = await fetch(url, { cache: 'no-store' });
     const result = await response.json();
     if (!response.ok) {
@@ -210,133 +233,135 @@ export function ScoreboardScreen({ viewOnly = false }: { viewOnly?: boolean }) {
   }, [selectedEventId]);
 
   return (
-    <main className="min-h-screen bg-gray-950 p-3 text-white md:p-5">
-      <header className="mb-4 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link href="/" className="rounded-full bg-white px-4 py-2 text-sm font-black text-gray-950">
-              75Rabbit
-            </Link>
-            <span className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-black text-gray-950">전광판</span>
-            {viewOnly && <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-black text-white">일반 뷰 전용</span>}
-            {canManageScore && <span className="rounded-full bg-yellow-300 px-4 py-2 text-sm font-black text-gray-950">관리자 점수 입력 가능</span>}
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.16),transparent_30rem),linear-gradient(145deg,#07120e_0%,#030806_75%)] p-3 text-white md:p-4">
+      <header className="mb-3 rounded-[1.75rem] border border-emerald-200/20 bg-[#10231b] p-3 shadow-2xl md:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/" className="rounded-full bg-white px-4 py-2 text-sm font-black text-gray-950">
+                75Rabbit
+              </Link>
+              <span className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-black text-emerald-950">전광판</span>
+              {viewOnly && <span className="rounded-full bg-white/10 px-4 py-2 text-sm font-black text-white">보기 전용</span>}
+              {canManageScore && <span className="rounded-full bg-yellow-300 px-4 py-2 text-sm font-black text-yellow-950">관리자 입력</span>}
+            </div>
+            <h1 className="mt-3 truncate text-[clamp(1.75rem,3.2vw,3.4rem)] font-black leading-none tracking-tight">{selectedEvent?.title || '진행 중인 모임 없음'}</h1>
+            <p className="mt-2 truncate text-sm font-bold text-slate-300 md:text-base">{selectedEvent ? `${selectedEvent.event_date} · ${selectedEvent.location || '장소 미정'}` : '모임과 대진을 먼저 생성하세요.'}</p>
           </div>
-          <h1 className="mt-3 text-[clamp(1.9rem,3.5vw,3.6rem)] font-black leading-tight">{selectedEvent?.title || '진행 중인 모임 없음'}</h1>
-          <p className="mt-1 text-base font-bold text-white/60 md:text-lg">{selectedEvent ? `${selectedEvent.event_date} · ${selectedEvent.location || '장소 미정'}` : '모임관리에서 모임과 대진을 생성하세요.'}</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          {!viewOnly && (
-            <select className="rounded-2xl border border-white/20 bg-gray-900 px-4 py-3 font-bold text-white" value={selectedEventId} onChange={(event) => loadScoreboard(event.target.value)}>
-              <option value="">모임 선택</option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.event_date} · {event.title}
-                </option>
-              ))}
-            </select>
-          )}
-          {canManageScore && (
-            <select
-              className="rounded-2xl border border-white/20 bg-gray-900 px-4 py-3 font-bold text-white"
-              value={displayColumns}
-              onChange={(event) => {
-                setDisplayColumns(event.target.value);
-                window.localStorage.setItem('75rabbit_scoreboard_columns', event.target.value);
-              }}
-            >
-              <option value="auto">화면 자동 배치 ({effectiveColumns}열)</option>
-              <option value="1">수동 1열</option>
-              <option value="2">수동 2열</option>
-              <option value="3">수동 3열</option>
-              <option value="4">수동 4열</option>
-            </select>
-          )}
-          <button className="rounded-2xl bg-white px-5 py-3 font-black text-gray-950" onClick={() => loadScoreboard()} type="button">
-            새로고침
-          </button>
-          {canManageScore && (
-            <>
-              <Link className="rounded-2xl bg-gray-800 px-5 py-3 text-center font-black text-white" href={`/admin?event_id=${selectedEventId}`}>
-                관리자 메인
-              </Link>
-              <Link className="rounded-2xl bg-gray-800 px-5 py-3 text-center font-black text-white" href={`/admin/results?event_id=${selectedEventId}`}>
-                결과입력
-              </Link>
-            </>
-          )}
+          <div className="grid gap-2 sm:grid-cols-2 xl:flex xl:items-center">
+            {!viewOnly && (
+              <select className="h-11 rounded-2xl border border-white/15 bg-gray-950 px-3 text-sm font-black text-white outline-none" value={selectedEventId} onChange={(event) => loadScoreboard(event.target.value)}>
+                <option value="">모임 선택</option>
+                {events.map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.event_date} · {event.title}
+                  </option>
+                ))}
+              </select>
+            )}
+            {canManageScore && (
+              <select
+                className="h-11 rounded-2xl border border-white/15 bg-gray-950 px-3 text-sm font-black text-white outline-none"
+                value={displayColumns}
+                onChange={(event) => {
+                  setDisplayColumns(event.target.value);
+                  window.localStorage.setItem('75rabbit_scoreboard_columns', event.target.value);
+                }}
+              >
+                <option value="auto">자동 배치 ({effectiveColumns}열)</option>
+                <option value="1">수동 1열</option>
+                <option value="2">수동 2열</option>
+                <option value="3">수동 3열</option>
+                <option value="4">수동 4열</option>
+              </select>
+            )}
+            <button className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-gray-950" onClick={() => loadScoreboard()} type="button">
+              <Icon name="refresh" className="h-4 w-4" />새로고침
+            </button>
+            {canManageScore && (
+              <>
+                <Link className="grid h-11 place-items-center rounded-2xl bg-white/10 px-4 text-center text-sm font-black text-white" href={`/admin?event_id=${selectedEventId}`}>
+                  관리자
+                </Link>
+                <Link className="grid h-11 place-items-center rounded-2xl bg-white/10 px-4 text-center text-sm font-black text-white" href={`/admin/results?event_id=${selectedEventId}`}>
+                  결과입력
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
-      {error && <p className="mb-4 rounded-2xl bg-red-500/20 p-4 font-bold text-red-100">{error}</p>}
+      {error && <p className="mb-3 rounded-2xl bg-red-500/20 p-4 font-bold text-red-100">{error}</p>}
       {loading ? (
-        <section className="rounded-3xl bg-white/5 p-8 text-center text-2xl font-black">전광판을 불러오는 중입니다.</section>
+        <section className="rounded-[1.75rem] border border-white/10 bg-[#10231b] p-8 text-center text-2xl font-black">전광판을 불러오는 중입니다.</section>
       ) : (
-        <div className="grid items-start gap-4 xl:grid-cols-[1fr_360px] 2xl:grid-cols-[1fr_400px]">
-          <section className="grid auto-rows-fr gap-4" style={{ gridTemplateColumns: `repeat(${effectiveColumns}, minmax(0, 1fr))` }}>
+        <div className="grid items-start gap-3 xl:grid-cols-[1fr_340px] 2xl:grid-cols-[1fr_380px]">
+          <section className="grid auto-rows-fr gap-3" style={{ gridTemplateColumns: `repeat(${effectiveColumns}, minmax(0, 1fr))` }}>
             {courts.map((court) => (
-              <article key={court.court_no} className="flex min-h-[430px] flex-col rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-2xl">
-                <div className="mb-4 flex min-h-[70px] items-start justify-between gap-4">
+              <article key={court.court_no} className="flex flex-col rounded-[1.25rem] border border-emerald-100/20 bg-[#10231b] p-2.5 shadow-[0_18px_45px_rgba(0,0,0,0.32)] sm:min-h-[390px] sm:rounded-[1.75rem] sm:p-3 md:min-h-[420px] md:p-4">
+                <div className="mb-2 flex min-h-[48px] items-start justify-between gap-2 sm:mb-3 sm:min-h-[66px] sm:gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-300">Court</p>
-                    <h2 className="truncate text-[clamp(2rem,3vw,3rem)] font-black">{court.court_name}</h2>
+                    <p className="text-[0.68rem] font-black uppercase tracking-[0.28em] text-emerald-300">Court</p>
+                    <h2 className="truncate text-xl font-black leading-tight sm:text-[clamp(1.75rem,2.5vw,2.75rem)]">{court.court_name}</h2>
                   </div>
                   {court.match ? (
                     <div className="shrink-0 text-right">
-                      <p className="text-xs font-bold text-white/50">현재 경기</p>
-                      <p className="text-2xl font-black">
+                      <p className="text-[0.7rem] font-bold text-white/45">현재 경기</p>
+                      <p className="text-base font-black leading-tight sm:text-xl md:text-2xl">
                         R{court.match.round_no}-{court.match.match_no}
                       </p>
-                      <span className="mt-1 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-black">{statusText[court.match.status] || court.match.status}</span>
+                      <span className={`mt-1 inline-flex rounded-full px-3 py-1 text-[0.7rem] font-black ${statusClass[court.match.status] || 'bg-white/10 text-white'}`}>
+                        {statusText[court.match.status] || court.match.status}
+                      </span>
                     </div>
                   ) : (
-                    <span className="shrink-0 rounded-full bg-white/10 px-4 py-2 font-bold text-white/50">배정 없음</span>
+                    <span className="shrink-0 rounded-full border border-slate-500 bg-slate-800 px-3 py-1.5 text-xs font-black text-slate-200">배정 없음</span>
                   )}
                 </div>
 
                 {court.match ? (
                   <>
-                    <div className="grid flex-1 gap-4 md:grid-cols-2">
-                      <TeamPanel label="A" names={court.match.team_a_names} score={court.match.team_a_score} color="blue" />
-                      <TeamPanel label="B" names={court.match.team_b_names} score={court.match.team_b_score} color="rose" />
+                    <div className="grid flex-1 grid-cols-2 gap-2 sm:gap-3">
+                      <TeamPanel label="A" names={court.match.team_a_names} score={court.match.team_a_score} tone="blue" />
+                      <TeamPanel label="B" names={court.match.team_b_names} score={court.match.team_b_score} tone="rose" />
                     </div>
                     {canManageScore && <AdminScoreControls match={court.match} onSaved={() => loadScoreboard(selectedEventId)} />}
                   </>
                 ) : (
-                  <div className="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-white/20 p-10 text-center text-2xl font-black text-white/40">대기 중</div>
+                  <div className="flex flex-1 items-center justify-center rounded-[1.5rem] border border-dashed border-emerald-200/30 bg-[#0a1712] p-8 text-center text-2xl font-black text-slate-300">대기 중</div>
                 )}
               </article>
             ))}
-            {courts.length === 0 && <div className="rounded-3xl bg-white/5 p-10 text-center text-2xl font-black text-white/60">표시할 코트가 없습니다. 설정에서 코트 수를 확인하세요.</div>}
+            {courts.length === 0 && <div className="rounded-[1.75rem] border border-white/10 bg-[#10231b] p-10 text-center text-2xl font-black text-slate-300">표시할 코트가 없습니다. 설정에서 코트 수를 확인하세요.</div>}
           </section>
 
-          <aside className="rounded-[2rem] border border-white/10 bg-white/5 p-4">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <aside className="rounded-[1.75rem] border border-emerald-100/20 bg-[#10231b] p-3 shadow-[0_18px_45px_rgba(0,0,0,0.28)] md:p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-black">대기 경기</h2>
-                <p className="mt-1 text-sm font-bold text-white/50">코트 수만큼 먼저 표시합니다.</p>
+                <h2 className="text-xl font-black md:text-2xl">대기 경기</h2>
+                <p className="mt-1 text-xs font-bold text-slate-300">코트 수만큼 먼저 표시합니다.</p>
               </div>
-              <span className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-black text-gray-950">{waitingMatches.length}개</span>
+              <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-gray-950">{waitingMatches.length}개</span>
             </div>
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               {visibleWaitingMatches.map((match) => (
-                <div key={match.id} className="min-h-[116px] rounded-3xl bg-gray-900 p-4">
+                <div key={match.id} className="min-h-[86px] rounded-2xl border border-slate-700 bg-[#08130f] p-3 shadow-inner sm:min-h-[104px] sm:rounded-[1.4rem]">
                   <div className="flex items-center justify-between gap-3">
-                    <b className="text-lg">
-                      R{match.round_no}-{match.match_no}
-                    </b>
-                    <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-bold">{match.court_name || `${match.court_no || '-'}코트`}</span>
+                    <b className="text-base">R{match.round_no}-{match.match_no}</b>
+                    <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-[0.68rem] font-bold">{match.court_name || `${match.court_no || '-'}코트`}</span>
                   </div>
-                  <div className="mt-3 grid gap-2 text-sm font-bold text-white/80">
-                    <p className="truncate">
+                  <div className="mt-3 grid gap-2 text-sm font-bold text-slate-100">
+                    <p className="truncate" title={match.team_a_names.join(' / ') || '-'}>
                       <span className="text-blue-300">A</span> {match.team_a_names.join(' / ') || '-'}
                     </p>
-                    <p className="truncate">
+                    <p className="truncate" title={match.team_b_names.join(' / ') || '-'}>
                       <span className="text-rose-300">B</span> {match.team_b_names.join(' / ') || '-'}
                     </p>
                   </div>
                 </div>
               ))}
-              {waitingMatches.length === 0 && <p className="rounded-3xl bg-gray-900 p-6 text-center font-bold text-white/50">대기 경기가 없습니다.</p>}
+              {waitingMatches.length === 0 && <p className="rounded-[1.4rem] border border-slate-700 bg-[#08130f] p-6 text-center font-bold text-slate-300">대기 경기가 없습니다.</p>}
               {hiddenWaitingCount > 0 && (
                 <button className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black text-white hover:bg-white/15" type="button" onClick={() => setWaitingExpanded(true)}>
                   나머지 대기 경기 {hiddenWaitingCount}개 펼치기

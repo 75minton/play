@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AdminShell } from '@/components/AdminShell';
+import { Icon } from '@/components/Icon';
 
 type EventOption = {
   id: string;
@@ -42,6 +43,7 @@ export default function AdminResultsPage() {
   const [showFinished, setShowFinished] = useState(false);
   const [finishedQuery, setFinishedQuery] = useState('');
   const [message, setMessage] = useState('');
+  const scoreEditorRef = useRef<HTMLDivElement>(null);
 
   const selectedMatch = useMemo(() => matches.find((match) => match.id === selectedMatchId), [matches, selectedMatchId]);
   const activeMatches = useMemo(() => matches.filter((match) => match.status !== 'finished'), [matches]);
@@ -100,12 +102,20 @@ export default function AdminResultsPage() {
 
   function chooseMatch(matchId: string) {
     const match = matches.find((item) => item.id === matchId);
-    if (match) chooseMatchFromList(match);
+    if (!match) return;
+    chooseMatchFromList(match);
+    if (window.innerWidth < 1024) {
+      window.requestAnimationFrame(() => scoreEditorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
   }
 
   async function saveResult(finish: boolean) {
     if (!selectedMatchId) {
       setMessage('점수를 입력할 경기를 선택하세요.');
+      return;
+    }
+    if (finish && teamAScore === teamBScore) {
+      setMessage('동점 점수로는 경기를 종료할 수 없습니다. 점수를 확인하세요.');
       return;
     }
     const response = await fetch('/api/admin/results', {
@@ -125,34 +135,44 @@ export default function AdminResultsPage() {
   function MatchCard({ match, finished = false }: { match: MatchView; finished?: boolean }) {
     const active = selectedMatchId === match.id;
     return (
-      <button
-        type="button"
-        onClick={() => chooseMatch(match.id)}
-        className={`w-full rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
-          active ? 'border-gray-900 bg-gray-900 text-white' : finished ? 'border-gray-200 bg-gray-100 text-gray-600' : 'border-gray-200 bg-white'
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <b>
-            R{match.round_no} - {match.match_no}경기
-          </b>
-          <span className="badge">{statusLabel[match.status] || match.status}</span>
-        </div>
-        <p className="mt-1 text-sm font-bold opacity-70">{match.court_name || `${match.court_no || '-'}코트`}</p>
-        <div className="mt-3 grid gap-2 text-sm">
-          <p>
-            <b>A</b> {match.team_a_names.join(' / ') || '-'}
-          </p>
-          <p>
-            <b>B</b> {match.team_b_names.join(' / ') || '-'}
-          </p>
-        </div>
-        {finished && (
-          <p className="mt-3 font-black">
-            A {match.team_a_score} : {match.team_b_score} B
-          </p>
+      <article ref={active ? scoreEditorRef : undefined} className={`scroll-mt-52 overflow-hidden rounded-2xl border transition hover:shadow-md ${active ? 'border-gray-900 shadow-md' : 'border-gray-200'}`}>
+        <button
+          type="button"
+          onClick={() => chooseMatch(match.id)}
+          className={`w-full p-4 text-left ${active ? 'bg-gray-900 text-white' : finished ? 'bg-gray-100 text-gray-600' : 'bg-white text-gray-900'}`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <b>R{match.round_no} - {match.match_no}경기</b>
+            <span className="badge">{statusLabel[match.status] || match.status}</span>
+          </div>
+          <p className="mt-1 text-sm font-bold opacity-70">{match.court_name || `${match.court_no || '-'}코트`}</p>
+          <div className="mt-3 grid gap-2 text-sm">
+            <p><b>A</b> {match.team_a_names.join(' / ') || '-'}</p>
+            <p><b>B</b> {match.team_b_names.join(' / ') || '-'}</p>
+          </div>
+          {finished && <p className="mt-3 font-black">A {match.team_a_score} : {match.team_b_score} B</p>}
+        </button>
+
+        {active && (
+          <div className="border-t border-gray-200 bg-white p-3 lg:hidden">
+            <p className="mb-3 text-sm font-black text-gray-900">선택 경기 점수 입력</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="rounded-xl bg-blue-50 p-2.5 text-sm font-black text-blue-900">
+                A팀 점수
+                <input className="input mt-2 text-center text-xl font-black" type="number" min={0} step={1} value={teamAScore} onChange={(event) => setTeamAScore(Number(event.target.value))} />
+              </label>
+              <label className="rounded-xl bg-rose-50 p-2.5 text-sm font-black text-rose-900">
+                B팀 점수
+                <input className="input mt-2 text-center text-xl font-black" type="number" min={0} step={1} value={teamBScore} onChange={(event) => setTeamBScore(Number(event.target.value))} />
+              </label>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button className="btn btn-secondary btn-sm" type="button" onClick={() => saveResult(false)}>임시 저장</button>
+              <button className="btn btn-sm gap-1.5" type="button" onClick={() => saveResult(true)}><Icon name="check" className="h-4 w-4" />경기 종료</button>
+            </div>
+          </div>
         )}
-      </button>
+      </article>
     );
   }
 
@@ -162,8 +182,9 @@ export default function AdminResultsPage() {
         <section className="card">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-xl font-black">진행 경기 점수 입력</h2>
-              <p className="mt-2 text-sm text-gray-600">경기를 select로 고르지 않고, 경기번호/코트번호 블록을 눌러 점수를 입력합니다. 종료된 경기는 기본 목록에서 제외됩니다.</p>
+              <span className="badge">경기 운영</span>
+              <h2 className="section-title mt-3">진행 경기 점수 입력</h2>
+              <p className="helper-text mt-2">경기 블록을 선택하면 모바일에서는 점수 입력 영역으로 바로 이동합니다.</p>
             </div>
             <select className="input md:w-80" value={selectedEventId} onChange={(event) => loadData(event.target.value)}>
               <option value="">모임 선택</option>
@@ -176,14 +197,14 @@ export default function AdminResultsPage() {
           </div>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_420px]">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="order-1 grid gap-3 sm:grid-cols-2 lg:order-1 xl:grid-cols-3">
               {activeMatches.map((match) => (
                 <MatchCard key={match.id} match={match} />
               ))}
               {activeMatches.length === 0 && <p className="rounded-2xl bg-gray-50 p-5 text-gray-600">현재 진행/대기 중인 경기가 없습니다.</p>}
             </div>
 
-            <div className="rounded-3xl border bg-white p-5">
+            <div className="hidden rounded-3xl border border-gray-200 bg-white p-5 shadow-sm lg:order-2 lg:block">
               {selectedMatch ? (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -207,12 +228,12 @@ export default function AdminResultsPage() {
                       <input className="input mt-3 text-2xl font-black" type="number" min={0} step={1} value={teamBScore} onChange={(event) => setTeamBScore(Number(event.target.value))} />
                     </label>
                   </div>
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <button className="rounded-full bg-gray-800 px-5 py-3 text-sm font-bold text-white" type="button" onClick={() => saveResult(false)}>
+                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                    <button className="btn btn-secondary" type="button" onClick={() => saveResult(false)}>
                       점수 임시 저장
                     </button>
-                    <button className="btn" type="button" onClick={() => saveResult(true)}>
-                      저장 후 경기 종료
+                    <button className="btn gap-2" type="button" onClick={() => saveResult(true)}>
+                      <Icon name="check" className="h-5 w-5" />저장 후 경기 종료
                     </button>
                   </div>
                 </>
@@ -221,7 +242,7 @@ export default function AdminResultsPage() {
               )}
             </div>
           </div>
-          {message && <p className="mt-4 rounded-xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
+          {message && <p className="alert mt-4" role="status">{message}</p>}
         </section>
 
         <section className="card">
@@ -230,7 +251,7 @@ export default function AdminResultsPage() {
               <h2 className="text-xl font-black">종료 경기 검색/수정</h2>
               <p className="mt-1 text-sm text-gray-600">별도 버튼으로 종료 경기 목록을 열고, 경기번호/선수명/코트번호로 검색해 점수를 수정할 수 있습니다.</p>
             </div>
-            <button className="rounded-full bg-gray-900 px-5 py-3 text-sm font-bold text-white" type="button" onClick={() => setShowFinished((value) => !value)}>
+            <button className="btn btn-sm" type="button" onClick={() => setShowFinished((value) => !value)}>
               {showFinished ? '종료 경기 닫기' : '종료 경기 보기'}
             </button>
           </div>

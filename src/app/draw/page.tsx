@@ -2,10 +2,11 @@ import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { getParticipantEventSession } from '@/lib/event-session';
 import { getServerSupabase } from '@/lib/supabase/server';
+import { Icon } from '@/components/Icon';
 
 const statusLabel: Record<string, string> = {
-  playing: '진행',
-  scheduled: '대기',
+  playing: '진행중',
+  scheduled: '대기중',
   paused: '일시중지',
   finished: '종료',
 };
@@ -35,12 +36,14 @@ function playerLabel(player: any) {
   return `${name}${level}`;
 }
 
-export default async function DrawPage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
+export default async function DrawPage({ searchParams }: { searchParams?: Promise<{ q?: string; status?: string }> }) {
   const session = await getParticipantEventSession();
   if (!session) redirect('/');
 
   const params = await searchParams;
   const query = String(params?.q || '').trim().toLowerCase();
+  const requestedStatus = String(params?.status || 'all');
+  const statusFilter = ['playing', 'scheduled', 'finished'].includes(requestedStatus) ? requestedStatus : 'all';
 
   const { data } = await getServerSupabase()
     .from('matches')
@@ -51,22 +54,39 @@ export default async function DrawPage({ searchParams }: { searchParams?: Promis
     .limit(300);
 
   const matches = (data || []).filter((match: any) => {
-    if (!query) return true;
-    return (match.match_players || []).some((player: any) => String(player.members?.name || '').toLowerCase().includes(query));
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'playing' ? ['playing', 'paused'].includes(match.status) : match.status === statusFilter);
+    const matchesPlayer =
+      !query || (match.match_players || []).some((player: any) => String(player.members?.name || '').toLowerCase().includes(query));
+    return matchesStatus && matchesPlayer;
   });
 
   return (
     <AppShell>
       <section className="card">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-2xl font-black">대진표</h1>
-            <p className="mt-2 text-sm text-gray-600">현재 진행중인 경기는 초록색, 종료된 경기는 회색으로 표시됩니다.</p>
+            <span className="badge">{matches.length}경기</span>
+            <h1 className="section-title mt-3">대진표</h1>
+            <p className="helper-text mt-2">선수 이름과 경기 상태를 함께 선택해 빠르게 찾을 수 있습니다.</p>
           </div>
-          <form className="flex gap-2" action="/draw">
-            <input className="input md:w-72" name="q" defaultValue={query} placeholder="선수 이름 검색" />
-            <button className="btn" type="submit">
-              검색
+          <form className="grid w-full gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto] lg:max-w-2xl" action="/draw">
+            <label className="field-label">
+              <span className="sr-only">선수 이름</span>
+              <input className="input" name="q" defaultValue={query} placeholder="선수 이름 검색" />
+            </label>
+            <label className="field-label">
+              <span className="sr-only">경기 상태</span>
+              <select className="input" name="status" defaultValue={statusFilter}>
+                <option value="all">전체 상태</option>
+                <option value="playing">경기 진행중</option>
+                <option value="scheduled">경기 대기중</option>
+                <option value="finished">경기 종료</option>
+              </select>
+            </label>
+            <button className="btn gap-2" type="submit">
+              <Icon name="search" className="h-5 w-5" />검색
             </button>
           </form>
         </div>
@@ -77,7 +97,7 @@ export default async function DrawPage({ searchParams }: { searchParams?: Promis
             const teamB = (match.match_players || []).filter((p: any) => p.team === 'B').sort((a: any, b: any) => a.position_no - b.position_no);
             const finishedAt = match.status === 'finished' ? formatDateTime(match.updated_at) : '';
             return (
-              <div key={match.id} className={`rounded-2xl border p-4 ${statusClass[match.status] || 'bg-white'}`}>
+              <article key={match.id} className={`rounded-2xl border p-4 sm:p-5 ${statusClass[match.status] || 'bg-white'}`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <b>
                     R{match.round_no} - {match.match_no}경기
@@ -88,20 +108,20 @@ export default async function DrawPage({ searchParams }: { searchParams?: Promis
                     {finishedAt && <span className="badge">종료 {finishedAt}</span>}
                   </div>
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl bg-white/75 p-3">
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="rounded-xl bg-white/85 p-3">
                     <b>A팀</b>
-                    <p>{teamA.map(playerLabel).join(' / ') || '-'}</p>
+                    <p className="mt-1 text-sm font-semibold leading-6">{teamA.map(playerLabel).join(' / ') || '-'}</p>
                   </div>
-                  <div className="rounded-xl bg-white/75 p-3">
+                  <div className="rounded-xl bg-white/85 p-3">
                     <b>B팀</b>
-                    <p>{teamB.map(playerLabel).join(' / ') || '-'}</p>
+                    <p className="mt-1 text-sm font-semibold leading-6">{teamB.map(playerLabel).join(' / ') || '-'}</p>
                   </div>
                 </div>
-              </div>
+              </article>
             );
           })}
-          {matches.length === 0 && <p className="text-gray-500">표시할 대진표가 없습니다.</p>}
+          {matches.length === 0 && <p className="alert py-8 text-center text-gray-500">검색 조건에 맞는 경기가 없습니다.</p>}
         </div>
       </section>
     </AppShell>

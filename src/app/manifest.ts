@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: '배드민턴 모임 참가, 대진표, 전광판, 결과 확인',
     start_url: '/',
     display: 'standalone',
-    background_color: '#f6f7fb',
-    theme_color: '#111827',
+    background_color: '#f3f6f8',
+    theme_color: '#10221c',
     orientation: 'any',
     icons: [
       {

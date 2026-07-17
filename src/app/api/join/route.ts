@@ -6,7 +6,6 @@ export async function POST(request: Request) {
   const serverSupabase = getServerSupabase();
   const body = await request.json().catch(() => ({}));
   const session = await getParticipantEventSession();
-  const accessCode = String(body.access_code || session?.accessCode || '').trim();
   const name = String(body.name || '').trim();
   const phoneLast4 = String(body.phone_last4 || '').trim();
   const level = String(body.level || '').trim();
@@ -16,14 +15,17 @@ export async function POST(request: Request) {
   const partnerFemaleName = String(body.partner_female_name || '').trim();
   const partnerName = [partnerMaleName && `남자:${partnerMaleName}`, partnerFemaleName && `여자:${partnerFemaleName}`].filter(Boolean).join(' / ');
 
-  if (!accessCode || !name || !/^\d{4}$/.test(phoneLast4)) {
-    return NextResponse.json({ error: '모임코드, 이름, 휴대폰 뒤 4자리를 확인하세요.' }, { status: 400 });
+  if (!session) {
+    return NextResponse.json({ error: '모임 입장 정보가 만료되었습니다. 모임코드로 다시 입장하세요.' }, { status: 401 });
+  }
+  if (!name || !/^\d{4}$/.test(phoneLast4)) {
+    return NextResponse.json({ error: '이름과 휴대폰 뒤 4자리를 확인하세요.' }, { status: 400 });
   }
   if (!['E조', 'D조', 'C조', 'B조', 'A조', 'S조'].includes(level)) {
     return NextResponse.json({ error: '급수를 선택하세요.' }, { status: 400 });
   }
 
-  const { data: event } = await serverSupabase.from('events').select('id').eq('access_code', accessCode).in('status', ['open', 'running']).maybeSingle();
+  const { data: event } = await serverSupabase.from('events').select('id').eq('id', session.eventId).in('status', ['open', 'running']).maybeSingle();
   if (!event) return NextResponse.json({ error: '참가 신청 가능한 모임을 찾을 수 없습니다.' }, { status: 404 });
 
   const { data: member, error: memberError } = await serverSupabase

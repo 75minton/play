@@ -7,7 +7,11 @@ function teamNames(match: any, team: 'A' | 'B') {
   return (match.match_players || [])
     .filter((player: any) => player.team === team)
     .sort((a: any, b: any) => a.position_no - b.position_no)
-    .map((player: any) => player.members?.name)
+    .map((player: any) => {
+      const name = player.members?.name;
+      if (!name) return null;
+      return player.members?.level ? `${name} · ${player.members.level}` : name;
+    })
     .filter(Boolean);
 }
 
@@ -31,15 +35,27 @@ function toMatchView(match: any) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const participantSession = await getParticipantEventSession();
-  const eventId = searchParams.get('event_id') || participantSession?.eventId || '';
+  const adminSession = await getAdminSession();
+  const participantOnly = searchParams.get('scope') === 'participant';
+  if (participantOnly && !participantSession) {
+    return NextResponse.json({ error: '모임코드로 다시 입장하세요.' }, { status: 401 });
+  }
+  if (!participantOnly && !adminSession && !participantSession) {
+    return NextResponse.json({ error: '모임코드로 입장하거나 관리자 로그인이 필요합니다.' }, { status: 401 });
+  }
+  const requestedEventId = searchParams.get('event_id') || '';
+  const canSelectAnyEvent = Boolean(adminSession) && !participantOnly;
+  const eventId = canSelectAnyEvent ? requestedEventId : participantSession?.eventId || '';
   const db = getServerSupabase();
 
-  const { data: events, error: eventError } = await db
+  let eventQuery = db
     .from('events')
     .select('id,title,event_date,location,court_count,status')
     .in('status', ['open', 'closed', 'running'])
     .order('event_date', { ascending: false })
     .order('created_at', { ascending: false });
+  if (!canSelectAnyEvent && participantSession) eventQuery = eventQuery.eq('id', participantSession.eventId);
+  const { data: events, error: eventError } = await eventQuery;
   if (eventError) return NextResponse.json({ error: eventError.message }, { status: 500 });
 
   const selectedEventId = eventId || events?.[0]?.id || '';
@@ -53,7 +69,7 @@ export async function GET(request: Request) {
   const { data: matches, error: matchError } = selectedEventId
     ? await db
         .from('matches')
-        .select('id,event_id,round_no,match_no,status,team_a_score,team_b_score,winner_team,courts(court_no,name),match_players(team,position_no,members(name))')
+        .select('id,event_id,round_no,match_no,status,team_a_score,team_b_score,winner_team,courts(court_no,name),match_players(team,position_no,members(name,level))')
         .eq('event_id', selectedEventId)
         .in('status', ['scheduled', 'playing', 'paused'])
         .order('round_no', { ascending: true })
@@ -64,7 +80,11 @@ export async function GET(request: Request) {
   const matchViews = (matches || []).map(toMatchView);
   const currentByCourt = (courts || []).map((court: any) => {
     const courtMatches = matchViews.filter((match: any) => match.court_no === court.court_no);
-    const current = courtMatches.find((match: any) => match.status === 'playing') || courtMatches[0] || null;
+    const current =
+      courtMatches.find((match: any) => match.status === 'playing') ||
+      courtMatches.find((match: any) => match.status === 'paused') ||
+      courtMatches.find((match: any) => match.status === 'scheduled') ||
+      null;
     return {
       court_no: court.court_no,
       court_name: court.name || `${court.court_no}코트`,
@@ -73,15 +93,13 @@ export async function GET(request: Request) {
   });
   const currentIds = new Set(currentByCourt.map((item: any) => item.match?.id).filter(Boolean));
   const waitingMatches = matchViews.filter((match: any) => !currentIds.has(match.id));
-  const adminSession = await getAdminSession();
-
   return NextResponse.json({
     events: events || [],
     selected_event_id: selectedEventId,
     selected_event: selectedEvent,
     courts: currentByCourt,
     waiting_matches: waitingMatches,
-    is_admin: Boolean(adminSession),
+    is_admin: Boolean(adminSession) && !participantOnly,
     has_participant_event: Boolean(participantSession),
   });
 }

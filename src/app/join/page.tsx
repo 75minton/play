@@ -9,6 +9,7 @@ export default function JoinPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [eventTitle, setEventTitle] = useState('');
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     fetch('/api/event-session', { cache: 'no-store' })
@@ -22,6 +23,7 @@ export default function JoinPage() {
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setMessage('');
+    setSuccess(false);
 
     const name = String(formData.get('name') || '').trim();
     const gender = String(formData.get('gender') || '').trim();
@@ -38,19 +40,25 @@ export default function JoinPage() {
       return;
     }
 
-    const response = await fetch('/api/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, gender, level, phone_last4: phoneLast4, play_type: playType, partner_male_name: partnerMaleName, partner_female_name: partnerFemaleName, memo }),
-    });
-    const result = await response.json();
-    setMessage(response.ok ? '참가 신청이 완료되었습니다.' : result.error || '참가 신청 중 오류가 발생했습니다.');
-    setLoading(false);
+    try {
+      const response = await fetch('/api/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, gender, level, phone_last4: phoneLast4, play_type: playType, partner_male_name: partnerMaleName, partner_female_name: partnerFemaleName, memo }),
+      });
+      const result = await response.json();
+      setSuccess(response.ok);
+      setMessage(response.ok ? '참가 신청이 완료되었습니다. 같은 정보로 다시 신청하면 기존 신청이 업데이트됩니다.' : result.error || '참가 신청 중 오류가 발생했습니다.');
+    } catch {
+      setMessage('네트워크 연결을 확인하고 다시 시도하세요.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <AppShell>
-      <section className="card">
+      <section className="card mx-auto max-w-3xl">
         <div className="flex flex-col gap-2">
           <span className="badge">참가신청</span>
           <h1 className="section-title">모임 참가 정보 등록</h1>
@@ -116,7 +124,7 @@ export default function JoinPage() {
             {loading ? '신청 중...' : '참가 신청 완료'}
           </button>
         </form>
-        {message && <p className="mt-4 rounded-2xl bg-gray-100 p-3 text-sm font-bold">{message}</p>}
+        {message && <p role="status" className={`mt-4 rounded-2xl border p-3 text-sm font-bold ${success ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-red-100 bg-red-50 text-red-700'}`}>{message}</p>}
       </section>
     </AppShell>
   );
